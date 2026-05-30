@@ -30,20 +30,26 @@ def unwrap(data):
 MAX_TASKS = 10
 
 def get_tasks_with_label(label):
-    """Fetch all active tasks and filter client-side by label name."""
-    r = requests.get(f"{API}/tasks", headers=HDR)
-    r.raise_for_status()
-    all_tasks = unwrap(r.json())
-    if all_tasks:
-        print(f"  [debug] task keys: {list(all_tasks[0].keys())}")
-        print(f"  [debug] first task: {json.dumps(all_tasks[0], indent=2)}")
-    matched = [t for t in all_tasks if label in t.get("labels", [])]
-    if len(matched) > MAX_TASKS:
+    """Fetch tasks filtered by label name, handling pagination."""
+    tasks = []
+    cursor = None
+    while True:
+        params = {"label": label, "limit": 200}
+        if cursor:
+            params["cursor"] = cursor
+        r = requests.get(f"{API}/tasks", headers=HDR, params=params)
+        r.raise_for_status()
+        data = r.json()
+        tasks.extend(data.get("results", data) if isinstance(data, dict) else data)
+        cursor = data.get("next_cursor") if isinstance(data, dict) else None
+        if not cursor:
+            break
+    if len(tasks) > MAX_TASKS:
         raise RuntimeError(
-            f"Sanity check failed: {len(matched)} tasks found with label '{label}' "
+            f"Sanity check failed: {len(tasks)} tasks found with label '{label}' "
             f"(max {MAX_TASKS}). Check that the label is set correctly."
         )
-    return matched
+    return tasks
 
 def get_inbox_id():
     """Get inbox project ID from the user object."""
