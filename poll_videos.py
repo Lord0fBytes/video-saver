@@ -34,6 +34,8 @@ def get_tasks_with_label(label):
     r = requests.get(f"{API}/tasks", headers=HDR)
     r.raise_for_status()
     all_tasks = unwrap(r.json())
+    if all_tasks:
+        print(f"  [debug] sample task labels field: {all_tasks[0].get('labels')!r}")
     matched = [t for t in all_tasks if label in t.get("labels", [])]
     if len(matched) > MAX_TASKS:
         raise RuntimeError(
