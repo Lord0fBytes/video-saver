@@ -24,12 +24,18 @@ HDR  = {"Authorization": f"Bearer {TODOIST_TOKEN}", "Content-Type": "application
 def get_tasks_with_label(label):
     r = requests.get(f"{API}/tasks", headers=HDR, params={"filter": f"@{label}"})
     r.raise_for_status()
-    return r.json()
+    return unwrap(r.json())
+
+def unwrap(data):
+    """Handle both plain list and paginated {"results": [...]} responses."""
+    if isinstance(data, list):
+        return data
+    return data.get("results", [])
 
 def get_inbox_id():
     r = requests.get(f"{API}/projects", headers=HDR)
     r.raise_for_status()
-    for p in r.json():
+    for p in unwrap(r.json()):
         if p.get("is_inbox_project"):
             return p["id"]
     raise RuntimeError("Inbox project not found")
@@ -37,7 +43,7 @@ def get_inbox_id():
 def get_or_create_section(project_id, name):
     r = requests.get(f"{API}/sections", headers=HDR, params={"project_id": project_id})
     r.raise_for_status()
-    for s in r.json():
+    for s in unwrap(r.json()):
         if s["name"] == name:
             return s["id"]
     r = requests.post(f"{API}/sections", headers=HDR,
