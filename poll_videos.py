@@ -27,12 +27,20 @@ def unwrap(data):
         return data
     return data.get("results", [])
 
+MAX_TASKS = 10
+
 def get_tasks_with_label(label):
     """Fetch all active tasks and filter client-side by label name."""
     r = requests.get(f"{API}/tasks", headers=HDR)
     r.raise_for_status()
     all_tasks = unwrap(r.json())
-    return [t for t in all_tasks if label in t.get("labels", [])]
+    matched = [t for t in all_tasks if label in t.get("labels", [])]
+    if len(matched) > MAX_TASKS:
+        raise RuntimeError(
+            f"Sanity check failed: {len(matched)} tasks found with label '{label}' "
+            f"(max {MAX_TASKS}). Check that the label is set correctly."
+        )
+    return matched
 
 def get_inbox_id():
     """Get inbox project ID from the user object."""
