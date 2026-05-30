@@ -21,24 +21,27 @@ HDR  = {"Authorization": f"Bearer {TODOIST_TOKEN}", "Content-Type": "application
 
 # ── Todoist helpers ────────────────────────────────────────────────────────────
 
-def get_tasks_with_label(label):
-    r = requests.get(f"{API}/tasks", headers=HDR, params={"filter": f"@{label}"})
-    r.raise_for_status()
-    return unwrap(r.json())
-
 def unwrap(data):
     """Handle both plain list and paginated {"results": [...]} responses."""
     if isinstance(data, list):
         return data
     return data.get("results", [])
 
-def get_inbox_id():
-    r = requests.get(f"{API}/projects", headers=HDR)
+def get_tasks_with_label(label):
+    """Fetch all active tasks and filter client-side by label name."""
+    r = requests.get(f"{API}/tasks", headers=HDR)
     r.raise_for_status()
-    for p in unwrap(r.json()):
-        if p.get("is_inbox_project"):
-            return p["id"]
-    raise RuntimeError("Inbox project not found")
+    all_tasks = unwrap(r.json())
+    return [t for t in all_tasks if label in t.get("labels", [])]
+
+def get_inbox_id():
+    """Get inbox project ID from the user object."""
+    r = requests.get(f"{API}/user", headers=HDR)
+    r.raise_for_status()
+    project_id = r.json().get("inbox_project_id")
+    if not project_id:
+        raise RuntimeError("inbox_project_id not found in user response")
+    return project_id
 
 def get_or_create_section(project_id, name):
     r = requests.get(f"{API}/sections", headers=HDR, params={"project_id": project_id})
